@@ -12,29 +12,51 @@ TITLE Program Combos     (combos.asm)
 
 INCLUDE Irvine32.inc
 
+;Display on string on single line
 disLine		MACRO	buf
-	myWrite buf
-	call	CrLf
+	myWriteStr	buf
+	call		CrLf
 ENDM
 
-myWrite		MACRO	buff
+;Prints string
+myWriteStr		MACRO	buff
 	push	edx
 	mov		edx, OFFSET buff
 	call	WriteString
 	pop		edx
 ENDM
 
-prob		MACRO	num, r, n
+;PRints the prompt for the problem
+probDis		MACRO	num, nM, rM
 	push	eax
-	myWrite promProb
-	mov		eax, num
-	call	WriteDec
+	
+	;;Display Problem number
+	myWriteStr	promProb
+	mov			eax, num
+	call		WriteDec
+	call		CrLf
+	
+	;;Display how many in a set
+	myWriteStr	promSet
+	mov			eax, nM
+	call		WriteDec
+	call		CrLf
+
+	;;Display how to choose in a set
+	myWriteStr	promCho
+	mov			eax, rM
+	call		WriteDec
+	call		CrLf
+
 	pop		eax
 ENDM
 
+
+
 NUMHIGH = 12;Upper limit of first number for combos
 NUMLOW = 3;Upper limit of first number for combos
-
+CHAR0 = 48;ASCII number of '0'
+CHAR9 = 57;ASCII number of '9'
 
 
 .data
@@ -44,10 +66,16 @@ promPrgmr	BYTE	"By Sebastian Sojka", 0
 promFunc1	BYTE	"I will display a combinations problem that you will answer.", 0
 promFunc2	BYTE	"I will tell you the answer and if you are right or wrong.", 0
 promProb	BYTE	"Problem ",0
+promSet		BYTE	"Elements in set: ", 0
+promCho		BYTE	"Elements to chose in set: ", 0
+promIn		BYTE	"So how many wats can you choose?" ,0
 
-
-r			BYTE	?
-n			BYTE	?
+probNum		DWORD	0
+r			DWORD	?
+n			DWORD	?
+useAns		DWORD	?
+ans			DWORD	?
+ansStr		BYTE	35 DUP(?)
 
 .code
 main PROC
@@ -57,9 +85,16 @@ main PROC
 	call	Randomize
 	call	intro
 	
+problems:
+	push	OFFSET probNum
 	push	OFFSET r
 	push	OFFSET n
 	call	showPro
+
+	push	OFFSET ansStr
+	push	OFFSET useAns
+	call	getAns
+
 
 
 
@@ -90,9 +125,9 @@ intro PROC
 intro ENDP
 
 ;Description: Shows the problem to the user along with number limits 
-;Recives: addresses for upper and lower limit
-;Returns: nothin
-;requires: 
+;Recives: addresses for items within the set and the number of items to be chosen for combo
+;Returns: none
+;requires: none
 showPro PROC
 	;set up stack frame
 	push	ebp
@@ -104,19 +139,35 @@ showPro PROC
 	push	NUMLOW
 	call	getRan
 
-
 	push	[ebp+12]
 	mov		eax, [ebp+8]
 	push	[eax]
-	push	NUMLOW
+	push	1
 	call	getRan
 
 
+	;Increase problem count by one
+	mov		ecx, [ebp+16]
+	mov		eax, [ecx]
+	inc		eax
+	mov		[ecx], eax
+	mov		ecx, [ecx]
+	
+	;Number items within the set
+	mov		eax, [ebp+8]
+	mov		edx, [eax]
+
+	;Gets number to choose from the set 
+	mov		ebx, [ebp+12]
+	mov		ebx, [ebx]
+
+	;Display Problem
+	probDis	ecx, edx, ebx
 
 	popad
 	;restore stack
 	pop		ebp
-	ret		8
+	ret		12
 showPro	ENDP
 
 
@@ -142,10 +193,67 @@ getRan PROC
 	mov		ebx, [ebp+16]
 	mov		[ebx], eax
 
+
 	popad
 	;restore stack
 	pop		ebp
 	ret		12
 getRan ENDP
+
+;Description: Gets the user answer
+;Recives: addresses for userAnswe
+;Returns: r and n for 
+;requires: 
+getAns PROC
+	;set up stack frame
+	push	ebp
+	mov		ebp, esp
+	pushad
+	
+
+	disLine	promIn
+
+UserInput:
+	mov		edx, [ebp+12]
+	mov		ecx, 34
+	call	ReadString
+	mov		eax, 0
+	mov		ecx, 0
+	check:
+		mov		edx, [ebp+12]
+		add		edx, ecx
+		mov		bl, [edx]
+		cmp		bl, 0
+		je		endRead
+		
+		mov		bh, CHAR9
+		cmp		bh, bl
+		jl		error
+
+		mov		bh, CHAR0
+		cmp		bl, bh
+		jl		error
+		
+		mov		edx, 10
+
+		mul		edx
+		
+		sub		bl, bh
+
+		movzx	edx,BYTE PTR bl
+
+		add		eax, edx
+
+		inc		ecx
+		jmp		check
+	error:
+		jmp	userInput
+endRead:
+
+	popad
+	;restore stack
+	pop		ebp
+	ret		4
+getAns	ENDP
 
 END main
