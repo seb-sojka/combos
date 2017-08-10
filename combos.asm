@@ -51,13 +51,11 @@ probDis		MACRO	num, nM, rM
 	pop		eax
 ENDM
 
-
-
 NUMHIGH = 12;Upper limit of first number for combos
 NUMLOW = 3;Upper limit of first number for combos
 CHAR0 = 48;ASCII number of '0'
 CHAR9 = 57;ASCII number of '9'
-
+EXITCHAR EQU <'e'>;'e' to exit program
 
 .data
 
@@ -68,7 +66,16 @@ promFunc2	BYTE	"I will tell you the answer and if you are right or wrong.", 0
 promProb	BYTE	"Problem ",0
 promSet		BYTE	"Elements in set: ", 0
 promCho		BYTE	"Elements to chose in set: ", 0
-promIn		BYTE	"So how many wats can you choose?" ,0
+promIn		BYTE	"So how many ways can you choose?" ,0
+promErrInt	BYTE	"Error - User intput not integer.", 0
+promAns1	BYTE	"For ", 0
+promAns2	BYTE	" items from a set of ", 0
+promAns3	BYTE	", there are ", 0
+promAns4	BYTE	" combinations.", 0
+promCorr	BYTE	"You were lucky. You got the answer right.", 0
+promInc		BYTE	"You were unlucky. You got it wrong.", 0
+promAskExit	BYTE	"Press E to exit program. Press any other key continue practicing.", 0
+
 
 probNum		DWORD	0
 r			DWORD	?
@@ -95,12 +102,68 @@ problems:
 	push	OFFSET useAns
 	call	getAns
 
+	push	r
+	push	n
+	push	OFFSET ans
+	call	calcul
 
+	push	r
+	push	n
+	push	ans
+	push	useAns
+	call	showRes
+	
+	disLine	promAskExit
 
+	;Gets ccharacter response from user
+	call	ReadChar
 
+	;Compare user input to exit character, e
+	cmp		Al, EXITCHAR
+
+	je		exitP
+	jmp		problems
+exitP:
 	exit	; exit to operating system
 main ENDP
 
+showRes PROC
+	;set up stack frame
+	push	ebp
+	mov		ebp, esp
+	pushad
+	
+	myWriteStr promAns1
+	mov		eax, [ebp+20]
+	call	WriteDec
+
+	myWriteStr promAns2
+	mov		eax, [ebp+16]
+	call	WriteDec
+
+	myWriteStr promAns3
+	mov		eax, [ebp+12]
+	call	WriteDec
+
+	myWriteStr promAns4
+
+	call	CrLf
+
+	mov		eax, [ebp+12]
+	mov		ebx, [ebp+8]
+	cmp		eax, ebx
+	je		correct
+incorrect:
+	disLine	promInc
+	jmp		endRes
+
+correct:
+	disLine	promCorr	
+endRes:
+	popad
+	pop		ebp
+	ret		16
+showRes ENDP
 ;Description: Display name of program, the programmer, and function of the program
 ;Recives: None
 ;Returns: None
@@ -211,9 +274,8 @@ getAns PROC
 	pushad
 	
 
-	disLine	promIn
-
 UserInput:
+	disLine	promIn
 	mov		edx, [ebp+12]
 	mov		ecx, 34
 	call	ReadString
@@ -247,13 +309,85 @@ UserInput:
 		inc		ecx
 		jmp		check
 	error:
-		jmp	userInput
+		call	CrLf
+		disLine	promErrInt
+		jmp		userInput
+
 endRead:
+	mov		ebx, [ebp+8]
+	mov		[ebx], eax
 
 	popad
 	;restore stack
 	pop		ebp
-	ret		4
+	ret		8
 getAns	ENDP
+
+
+calcul PROC
+	;LOCAL	nFact:DWORD;, rFact:DWORD, difFact:DWORD
+	;set up stack frame
+	push	ebp
+	mov		ebp, esp
+	pushad
+
+	
+	mov		eax, [ebp+12]
+	sub		eax, [ebp+16]
+	push	eax
+	push	1
+	call	factor
+	mov		ecx, eax
+
+	push	[ebp+16]
+	push	1
+	call	factor
+	mov		ebx, eax
+
+	push	[ebp+12]
+	push	1
+	call	factor
+	
+	div		ebx
+	div		ecx
+
+	mov		ebx, [ebp+8]
+	mov		[ebx], eax
+
+
+
+	popad
+	;restore stack
+	pop		ebp
+	ret		12
+calcul ENDP
+
+factor PROC
+	;set up stack frame
+	push	ebx
+	push	ecx
+	push	ebp
+	mov		ebp, esp
+
+	mov		ecx, [ebp+20]
+	cmp		ecx, 1
+	mov		eax, [ebp+16]
+	jle		stop
+	mul		ecx
+	dec		ecx
+	push	ecx
+	push	eax
+	call	factor
+
+stop:		
+
+	;restore stack
+	pop		ebp
+	pop		ecx
+	pop		ebx
+	ret		8
+factor ENDP
+
+
 
 END main
